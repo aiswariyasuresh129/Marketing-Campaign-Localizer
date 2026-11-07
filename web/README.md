@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Campaign Localizer
 
-## Getting Started
+A local Next.js and TypeScript interface for brand-agnostic campaign reviews. The server starts a non-interactive PowerShell 7 worker for each submitted photo. Each photo gets a separate review with the shared documents, private previews, approval decisions, and a downloadable ZIP.
 
-First, run the development server:
+## Run locally
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+From the repository root in PowerShell, run the launcher. It uses existing dependencies, starts in the correct directory, and can use the bundled Node.js and PowerShell runtimes when they are outside PATH.
+
+```powershell
+.\Start-CampaignLocalizer.ps1
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Enter the ZooWork key at the hidden prompt and open [http://127.0.0.1:3000](http://127.0.0.1:3000). Keep the terminal open during reviews. The launcher defaults to this project's provisioned agent. To use a different agent or skip the prompt, configure `ZOOWORK_AGENT_ID` and `ZOOWORK_API_KEY` in the server environment or in an ignored `web/.env.local`. Set `ZOOWORK_PWSH` if the server needs a specific PowerShell 7 executable.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+On a fresh checkout, install dependencies first with `npm ci` from the `web` folder using a Node.js installation that includes npm.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app accepts DOCX, PDF, PNG, JPEG, GIF, and WebP without a workflow-level file-count cap. Image files each start one review. Mark a PDF as **Source photo** when it contains the intended image. The remaining documents are shared. Leave Markets and Launch date blank to use the brief.
 
-## Learn More
+The review shows ZooWork checkpoints, routing decisions and verified previews as they arrive. Open a frame in the campaign kit to inspect the copy, see cited rules, request a revision or make an approval decision. The app keeps raster key art in the ignored `web/.review-data/sources` directory so it can display the original upload when a review is reopened.
 
-To learn more about Next.js, take a look at the following resources:
+Edit the per-review instructions in `scripts/CampaignReviewPrompt.md`. The agent takes brand, market, color, copy, and format requirements from the supplied documents. Missing required HEX values hold only the affected versions.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Match and audit
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Register the review tools once for the agent from the repository root, using PowerShell 7. Pass `-AgentId` when using a different agent.
 
-## Deploy on Vercel
+```powershell
+.\Register-ZooWorkReviewTools.ps1
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The app uses the bundled Node.js runtime's SQLite support and stores reservations and append-only audit events in the ignored `web/.review-data/reviews.sqlite` file. Keep that directory to retain history across app restarts. The worker reads ZooWork tool requests and sends them over its process pipes to the local app. It does not require a public callback or database server.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app reserves eligible assets before rendering and verifies preview artifact IDs against the reserved ZooWork session and path. An identical eligible asset can reuse a ready preview. This does not clear an asset's creative, calendar, or format requirements. Download the recorded events as JSON from the results screen.
+
+Approve or reject versions individually, then select **Create approved ZIP** for that photo. The local app creates the archive from verified PNGs and writes the final `manifest.json`. The approval list is locked once the ZIP is created. Held, pending, and rejected images are excluded.
